@@ -1,0 +1,11 @@
+{
+  "providers": {
+    "codex": {"enabled": true},
+    "opencode": {
+      "enabled": true,
+      "cookie": "auth=Fe26.2**8e0277bf96f008d32806a334b2bac494952c8d13077e835d18c123408c59e9e7*OaMllH1fycoJszzMzlarhw*asgJTwBI4MkQ9CWMt-LR2G0057k9nxwtVVdOPDB_P9tG2I5a2QWlp9OCZLX0cQHOQfkavKBWuILFUYu5FBJDfVQO9suDZ8gosKYD5AKfpOpwz4YIB8dVQDk4i7e0r-EPybfT7xeJzA6pBgQjl2MjBIvhdApDlxfEQic-5KkN5xelZYklYH5DCOdtw5cN5H31CKoWlgeDeEm1VRnubxS0z43ty58YAfAkUHD9GMg3lE_0UQNB7REWsn_IbKHKZTiS2DTiO4dDEPB2SAuNar_xs-jbvKS5S1syZiCziyVSm5ymqYTRhD4R0qYqQgTtyPnelBGtqcKwvD3fVECQreLKIw*1807114377872*c71120c2dbdacb33cab80b6f6a1cbfb3e8d2db7dc80490af9ff4cb9bd7ae5ead*0nO_5ffjUgQGQf_oZ3oe4IlJKqQaK7n3iK_FWM8ItPs; oc_locale=en"
+    }
+  },
+  "refresh_interval": 60
+}
+
