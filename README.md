@@ -34,10 +34,22 @@ Quit
 
 ## Installation
 
-### Option 1: pip (recommended)
+### Option 1: AUR (Arch Linux)
 
 ```bash
-git clone https://github.com/yourusername/meter.git
+yay -S meter-tray
+# or
+paru -S meter-tray
+# or manually
+git clone https://aur.archlinux.org/meter-tray.git
+cd meter-tray
+makepkg -si
+```
+
+### Option 2: pip (recommended)
+
+```bash
+git clone https://github.com/xddinside/meter.git
 cd meter
 pip install -e .
 ```
@@ -47,10 +59,10 @@ Then run:
 meter
 ```
 
-### Option 2: Manual
+### Option 3: Manual
 
 ```bash
-git clone https://github.com/yourusername/meter.git
+git clone https://github.com/xddinside/meter.git
 cd meter
 pip install pystray pillow
 python -m meter
