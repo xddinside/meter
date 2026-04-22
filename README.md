@@ -70,14 +70,23 @@ python -m meter
 
 ### Autostart
 
-```bash
-# Copy the desktop file
-cp autostart/meter.desktop ~/.config/autostart/
-```
+Meter uses a **systemd user service** for autostart (cleaner than desktop files):
 
-Or use the built-in command (after pip install):
 ```bash
+# Enable autostart on boot
 meter --autostart
+
+# Start now (without enabling autostart)
+systemctl --user start meter
+
+# Check status
+systemctl --user status meter
+
+# View logs
+journalctl --user -u meter -f
+
+# Disable autostart
+meter --remove-autostart
 ```
 
 ## Configuration
@@ -128,6 +137,21 @@ Options:
   --no-tray            Run without system tray (print once and exit)
   --debug              Enable debug logging
   --refresh            Trigger a manual refresh and print status
+  --autostart          Enable autostart on boot via systemd
+  --remove-autostart   Disable autostart
+```
+
+## Uninstall
+
+```bash
+# If installed via pip
+pip uninstall meter-tray
+
+# If installed via AUR
+yay -R meter-tray
+
+# Remove user data (optional)
+rm -rf ~/.config/meter ~/.cache/meter ~/.local/share/meter
 ```
 
 ## Troubleshooting

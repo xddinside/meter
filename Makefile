@@ -1,26 +1,36 @@
-.PHONY: install uninstall clean test run autostart aur-update aur-push
+.PHONY: install uninstall clean test run aur-update aur-push
 
 PREFIX ?= $(HOME)/.local
 BINDIR = $(PREFIX)/bin
 SHAREDIR = $(PREFIX)/share
 APPDIR = $(SHAREDIR)/applications
-AUTOSTARTDIR = $(HOME)/.config/autostart
+SYSTEMD_USER_DIR = $(HOME)/.config/systemd/user
 VERSION = $(shell grep '^pkgver=' PKGBUILD | cut -d= -f2)
 
 install:
 	pip install -e .
-	install -Dm644 autostart/meter.desktop $(APPDIR)/meter.desktop
-	@echo "Installed. Run 'meter' to start."
+	install -Dm644 systemd/meter.service $(SYSTEMD_USER_DIR)/meter.service
+	@echo "Installed meter."
+	@echo ""
+	@echo "To start now and enable on boot:"
+	@echo "  systemctl --user daemon-reload"
+	@echo "  systemctl --user enable --now meter"
 
 uninstall:
+	-systemctl --user stop meter 2>/dev/null || true
+	-systemctl --user disable meter 2>/dev/null || true
 	pip uninstall -y meter-tray 2>/dev/null || true
+	rm -f $(SYSTEMD_USER_DIR)/meter.service
 	rm -f $(APPDIR)/meter.desktop
-	rm -f $(AUTOSTARTDIR)/meter.desktop
-	@echo "Uninstalled."
+	rm -f $(HOME)/.config/autostart/meter.desktop
+	-systemctl --user daemon-reload 2>/dev/null || true
+	@echo "Uninstalled meter."
 
 autostart:
-	install -Dm644 autostart/meter.desktop $(AUTOSTARTDIR)/meter.desktop
-	@echo "Autostart enabled."
+	install -Dm644 systemd/meter.service $(SYSTEMD_USER_DIR)/meter.service
+	-systemctl --user daemon-reload
+	-systemctl --user enable --now meter
+	@echo "Autostart enabled via systemd user service."
 
 clean:
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true

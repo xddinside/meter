@@ -1,0 +1,12 @@
+[Unit]
+Description=Meter - AI usage tracker for system tray
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/meter
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
