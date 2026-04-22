@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import threading
 import logging
+from importlib import resources
 from datetime import datetime
 from typing import Optional, List
 
@@ -17,41 +18,62 @@ class SystemTray:
         self.icon: Optional[pystray.Icon] = None
         self._thread: Optional[threading.Thread] = None
         self._update_thread: Optional[threading.Thread] = None
+        self._base_icon_image: Optional[Image.Image] = None
         self._stopping = False
-        
-    def _create_icon_image(self, status_text: str = None) -> Image:
+
+    def _load_base_icon(self) -> Optional[Image.Image]:
+        if self._base_icon_image is not None:
+            return self._base_icon_image.copy()
+
+        try:
+            resource = resources.files('meter').joinpath('assets/tray-icon.png')
+            with resources.as_file(resource) as icon_path:
+                with Image.open(icon_path) as icon_image:
+                    self._base_icon_image = icon_image.convert('RGBA').resize((64, 64), Image.Resampling.LANCZOS)
+        except Exception as exc:
+            logger.warning(f"Falling back to generated icon: {exc}")
+            self._base_icon_image = None
+
+        return self._base_icon_image.copy() if self._base_icon_image else None
+
+    def _create_fallback_icon_image(self) -> Image.Image:
         width, height = 64, 64
-        image = Image.new('RGB', (width, height), color='#1a1a2e')
+        image = Image.new('RGBA', (width, height), color='#1a1a2e')
         draw = ImageDraw.Draw(image)
-        
+
         bar_width = 16
         bar_height = 24
         bar_gap = 4
-        
+
         x1 = (width - bar_width * 2 - bar_gap) // 2
         y1 = (height - bar_height - bar_gap - 8) // 2
-        
+
         draw.rectangle([x1, y1, x1 + bar_width, y1 + bar_height], fill='#4ade80')
-        
+
         y2 = y1 + bar_height + bar_gap
         draw.rectangle([x1, y2, x1 + bar_width, y2 + 8], fill='#22c55e')
-        
-        if status_text:
-            try:
-                draw.text((width // 2, height - 8), '●', fill='#ef4444', anchor='mm')
-            except:
-                pass
-        
+
         return image
-    
+
+    def _create_icon_image(self, status_text: str = None) -> Image:
+        image = self._load_base_icon() or self._create_fallback_icon_image()
+        draw = ImageDraw.Draw(image)
+
+        if status_text:
+            badge_bounds = (46, 46, 60, 60)
+            draw.ellipse((44, 44, 62, 62), fill=(12, 18, 32, 230))
+            draw.ellipse(badge_bounds, fill='#ef4444')
+
+        return image
+
     def _get_menu_items(self) -> List[pystray.MenuItem]:
         items = []
-        
+
         items.append(pystray.MenuItem('─ Meter ─', None, enabled=False))
         items.append(pystray.Menu.SEPARATOR)
-        
+
         usage_data = self.provider_manager.get_all_usage()
-        
+
         if not usage_data:
             items.append(pystray.MenuItem('No providers', None, enabled=False))
         else:
@@ -65,59 +87,59 @@ class SystemTray:
         items.append(pystray.Menu.SEPARATOR)
         items.append(pystray.MenuItem('Refresh', self._on_refresh))
         items.append(pystray.MenuItem('Quit', self._on_quit))
-        
+
         return items
-    
+
     def _format_usage_items(self, name: str, usage) -> List[pystray.MenuItem]:
         items = []
-        
+
         if not usage:
             items.append(pystray.MenuItem(f"{name.capitalize()}: Loading...", None, enabled=False))
             return items
-        
+
         if usage.is_error:
             items.append(pystray.MenuItem(f"{name.capitalize()}: ⚠ {usage.error}", None, enabled=False))
             return items
-        
+
         items.append(pystray.MenuItem(f"{name.capitalize()}:", None, enabled=False))
-        
+
         if usage.session_percent is not None:
             session_str = f"Session: {usage.session_percent:.0f}%"
             if usage.session_remaining:
                 session_str += f" ({usage.session_remaining})"
             items.append(pystray.MenuItem(session_str, None, enabled=False))
-        
+
         if usage.weekly_percent is not None:
             weekly_str = f"Weekly: {usage.weekly_percent:.0f}%"
             if usage.weekly_remaining:
                 weekly_str += f" ({usage.weekly_remaining})"
             items.append(pystray.MenuItem(weekly_str, None, enabled=False))
-        
+
         if usage.credits is not None:
             items.append(pystray.MenuItem(f"Credits: ${usage.credits:.2f}", None, enabled=False))
-        
+
         if len(items) == 1:
             items.append(pystray.MenuItem("No data", None, enabled=False))
-        
+
         return items
-    
+
     def _build_menu(self):
         return pystray.Menu(*self._get_menu_items())
-    
+
     def _update_icon(self):
         if self._stopping or not self.icon:
             return
-            
+
         try:
             usage_data = self.provider_manager.get_all_usage()
             has_errors = any(u and u.is_error for u in usage_data.values())
-            
+
             image = self._create_icon_image('error' if has_errors else '')
             self.icon.icon = image
-            
+
             menu = self._build_menu()
             self.icon.menu = menu
-            
+
             title_parts = []
             for name, usage in usage_data.items():
                 if usage and not usage.is_error:
@@ -127,54 +149,54 @@ class SystemTray:
                         title_parts.append(f"{name[:1].upper()}:{usage.session_percent:.0f}%")
                     elif usage.credits is not None:
                         title_parts.append(f"{name[:1].upper()}:${usage.credits:.2f}")
-            
+
             self.icon.title = ' | '.join(title_parts) if title_parts else 'Meter'
         except Exception as e:
             if not self._stopping:
                 logger.error(f"Icon update error: {e}")
-    
+
     def _on_refresh(self):
         logger.info("Manual refresh triggered")
         self.provider_manager.refresh_all()
         self._update_icon()
-    
+
     def _on_quit(self):
         logger.info("Quit requested from tray")
         self._stopping = True
         self.provider_manager._running = False
-        
+
         if self.on_quit_callback:
             try:
                 self.on_quit_callback()
             except Exception as e:
                 logger.error(f"Quit callback error: {e}")
-        
+
         if self.icon:
             try:
                 self.icon.stop()
             except Exception as e:
                 logger.error(f"Icon stop error: {e}")
             self.icon = None
-    
+
     def start(self):
         self._stopping = False
-        
+
         def run_icon():
             menu = self._build_menu()
             image = self._create_icon_image()
-            
+
             self.icon = pystray.Icon(
                 'meter',
                 image,
                 'Meter',
                 menu
             )
-            
+
             self.icon.run()
-        
+
         self._thread = threading.Thread(target=run_icon, daemon=True)
         self._thread.start()
-        
+
         def update_loop():
             while not self._stopping:
                 try:
@@ -184,12 +206,12 @@ class SystemTray:
                         logger.error(f"Icon update error: {e}")
                 import time
                 time.sleep(10)
-        
+
         self._update_thread = threading.Thread(target=update_loop, daemon=True)
         self._update_thread.start()
-        
+
         logger.info("System tray started")
-    
+
     def stop(self):
         self._stopping = True
         if self.icon:

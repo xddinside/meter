@@ -42,3 +42,6 @@ where = ["src"]
 
 [tool.setuptools.package-dir]
 "" = "src"
+
+[tool.setuptools.package-data]
+meter = ["assets/*.png", "assets/*.svg"]

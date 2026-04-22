@@ -1,0 +1,47 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="panel" x1="128" y1="20" x2="128" y2="236" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0C1424"/>
+      <stop offset="1" stop-color="#162A32"/>
+    </linearGradient>
+    <linearGradient id="arc" x1="48" y1="144" x2="212" y2="72" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#43D9FF"/>
+      <stop offset="1" stop-color="#A0FF76"/>
+    </linearGradient>
+    <filter id="shadow" x="8" y="12" width="240" height="240" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#030811" flood-opacity="0.45"/>
+    </filter>
+    <filter id="glow" x="44" y="44" width="168" height="168" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0  0 1 0 0 0.9  0 0 1 0 0.7  0 0 0 0.38 0"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#shadow)">
+    <rect x="20" y="20" width="216" height="216" rx="54" fill="url(#panel)"/>
+    <rect x="28" y="28" width="200" height="200" rx="46" stroke="#7FFFD1" stroke-opacity="0.16" stroke-width="2"/>
+    <rect x="36" y="36" width="184" height="184" rx="38" stroke="white" stroke-opacity="0.08" stroke-width="1"/>
+  </g>
+
+  <path d="M72 174C58 158 50 137 50 116C50 73.8 84.2 40 126.4 40C165.9 40 199 69.8 204 108" stroke="#8BFFF5" stroke-opacity="0.28" stroke-width="18" stroke-linecap="round"/>
+  <path d="M66 168C53 152 46 134 46 112C46 68.9 80.9 34 124 34C163.7 34 196.9 63.9 202 103" stroke="url(#arc)" stroke-width="16" stroke-linecap="round"/>
+
+  <g filter="url(#glow)">
+    <rect x="84" y="112" width="24" height="56" rx="10" fill="#E3FCF0"/>
+    <rect x="116" y="88" width="24" height="80" rx="10" fill="#E3FCF0"/>
+    <rect x="148" y="100" width="24" height="68" rx="10" fill="#E3FCF0"/>
+  </g>
+  <rect x="84" y="112" width="24" height="56" rx="10" fill="#E3FCF0"/>
+  <rect x="116" y="88" width="24" height="80" rx="10" fill="#E3FCF0"/>
+  <rect x="148" y="100" width="24" height="68" rx="10" fill="#E3FCF0"/>
+  <path d="M84 122C84 116.477 88.4772 112 94 112H98C103.523 112 108 116.477 108 122V124H84V122Z" fill="white" fill-opacity="0.35"/>
+  <path d="M116 98C116 92.4772 120.477 88 126 88H130C135.523 88 140 92.4772 140 98V100H116V98Z" fill="white" fill-opacity="0.35"/>
+  <path d="M148 110C148 104.477 152.477 100 158 100H162C167.523 100 172 104.477 172 110V112H148V110Z" fill="white" fill-opacity="0.35"/>
+
+  <path d="M128 126L182 96" stroke="#88FFB5" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="128" cy="126" r="16" fill="#88FFB5"/>
+  <circle cx="128" cy="126" r="6" fill="#0B1220"/>
+
+  <rect x="186" y="52" width="16" height="16" rx="6" fill="white" fill-opacity="0.78"/>
+  <rect x="194" y="44" width="16" height="16" rx="6" fill="white" fill-opacity="0.55"/>
+</svg>
