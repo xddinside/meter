@@ -44,4 +44,4 @@ where = ["src"]
 "" = "src"
 
 [tool.setuptools.package-data]
-meter = ["assets/*.png", "assets/*.svg"]
+meter = ["assets/*.png", "assets/*.svg", "assets/logos/*.png", "assets/logos/*.svg"]

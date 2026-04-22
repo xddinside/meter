@@ -3,28 +3,88 @@ import math
 import threading
 import logging
 from importlib import resources
-from typing import Optional, List
+from typing import Optional, List, Dict
 
 import pystray
 from PIL import Image, ImageDraw
 
 logger = logging.getLogger('meter.ui')
 
-# Clean geometric shapes for progress bars (render consistently in system fonts)
-_BAR_FULL = '■'
-_BAR_EMPTY = '□'
-_BAR_WIDTH = 4
+# Progress bar characters — geometric, clean
+_BAR_FULL = '◼'
+_BAR_EMPTY = '◻'
+_BAR_WIDTH = 5
+
+# Brand colors (RGB tuples)
+_BRAND_COLORS = {
+    'codex': (16, 163, 127),      # OpenAI green #10a37f
+    'opencode': (99, 102, 241),   # Indigo #6366f1
+}
+
+# Usage status colors
+_USAGE_COLORS = {
+    'low': (16, 185, 129),      # Emerald
+    'med': (245, 158, 11),      # Amber
+    'high': (239, 68, 68),      # Red
+}
 
 
 def _mini_bar(percent: float, width: int = _BAR_WIDTH) -> str:
-    """Generate a compact progress bar using geometric shapes."""
+    """Generate a compact progress bar."""
     filled = int((percent / 100) * width)
     return _BAR_FULL * filled + _BAR_EMPTY * (width - filled)
 
 
 def _compact_time(remaining: str) -> str:
-    """Compress time string for menu width: '3h 9m' -> '3h9m'."""
+    """Compress time string for menu width."""
     return remaining.replace(' ', '') if remaining else ''
+
+
+def _usage_level(percent: float) -> str:
+    """Return usage level string."""
+    if percent >= 90:
+        return 'high'
+    elif percent >= 70:
+        return 'med'
+    return 'low'
+
+
+def _load_logo(name: str, size: int = 16) -> Optional[Image.Image]:
+    """Load provider logo as a PIL Image."""
+    try:
+        logo_path = resources.files('meter').joinpath(f'assets/logos/{name}.png')
+        with resources.as_file(logo_path) as path:
+            with Image.open(path) as img:
+                return img.convert('RGBA').resize((size, size), Image.Resampling.LANCZOS)
+    except Exception:
+        return None
+
+
+def _create_text_badge(text: str, color: tuple, size: int = 16) -> Image.Image:
+    """Create a text badge icon with colored background."""
+    image = Image.new('RGBA', (size, size), color=(0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    
+    # Draw circle background
+    draw.ellipse([0, 0, size - 1, size - 1], fill=(*color, 255))
+    
+    # Draw text centered
+    bbox = draw.textbbox((0, 0), text)
+    text_w = bbox[2] - bbox[0]
+    text_h = bbox[3] - bbox[1]
+    x = (size - text_w) // 2
+    y = (size - text_h) // 2 - 1
+    
+    draw.text((x, y), text, fill=(255, 255, 255, 255))
+    return image
+
+
+def _paste_image(base: Image.Image, overlay: Image.Image, x: int, y: int):
+    """Paste overlay onto base with alpha blending."""
+    if overlay.mode == 'RGBA':
+        base.paste(overlay, (x, y), overlay)
+    else:
+        base.paste(overlay, (x, y))
 
 
 class SystemTray:
@@ -36,7 +96,20 @@ class SystemTray:
         self._thread: Optional[threading.Thread] = None
         self._update_thread: Optional[threading.Thread] = None
         self._base_icon_image: Optional[Image.Image] = None
+        self._logo_cache: Dict[str, Image.Image] = {}
         self._stopping = False
+
+    def _get_logo(self, name: str, size: int = 16) -> Optional[Image.Image]:
+        """Get cached logo image for a provider."""
+        cache_key = f"{name}_{size}"
+        if cache_key not in self._logo_cache:
+            logo = _load_logo(name, size)
+            if logo is None:
+                # Fallback to text badge
+                color = _BRAND_COLORS.get(name, (99, 102, 241))
+                logo = _create_text_badge(name[:1].upper(), color, size)
+            self._logo_cache[cache_key] = logo
+        return self._logo_cache[cache_key]
 
     def _load_base_icon(self) -> Optional[Image.Image]:
         if self._base_icon_image is not None:
@@ -53,47 +126,75 @@ class SystemTray:
 
         return self._base_icon_image.copy() if self._base_icon_image else None
 
-    def _create_fallback_icon_image(self) -> Image.Image:
-        width, height = 64, 64
-        image = Image.new('RGBA', (width, height), color=(0, 0, 0, 0))
+    def _create_dynamic_icon(self, usage_data: dict) -> Image.Image:
+        """Create a dynamic icon showing provider status."""
+        size = 64
+        image = Image.new('RGBA', (size, size), color=(0, 0, 0, 0))
         draw = ImageDraw.Draw(image)
-
-        # Gauge-like icon
-        cx, cy = width // 2, height // 2 + 4
-        radius = 24
-
-        # Background arc
-        draw.arc([cx - radius, cy - radius, cx + radius, cy + radius],
-                 start=180, end=360, fill=(80, 80, 80, 180), width=6)
-
-        # Active arc
-        draw.arc([cx - radius, cy - radius, cx + radius, cy + radius],
-                 start=180, end=270, fill=(76, 175, 80, 255), width=6)
-
-        # Center dot
-        draw.ellipse([cx - 4, cy - 4, cx + 4, cy + 4], fill=(255, 255, 255, 200))
-
-        # Tick marks
-        for angle in [180, 225, 270, 315, 360]:
-            rad = math.radians(angle)
-            x1 = cx + (radius - 8) * math.cos(rad)
-            y1 = cy + (radius - 8) * math.sin(rad)
-            x2 = cx + (radius - 4) * math.cos(rad)
-            y2 = cy + (radius - 4) * math.sin(rad)
-            draw.line([x1, y1, x2, y2], fill=(255, 255, 255, 150), width=2)
-
+        
+        # Background circle
+        draw.ellipse([4, 4, size - 4, size - 4], fill=(30, 30, 30, 240), outline=(60, 60, 60, 200), width=2)
+        
+        providers = list(usage_data.keys())
+        
+        if not providers:
+            # Default "M" icon
+            draw.text((26, 20), "M", fill=(255, 255, 255, 200))
+            return image
+        
+        # Draw provider logos arranged in a grid
+        if len(providers) == 1:
+            # Single provider - logo centered with ring
+            name = providers[0]
+            usage = usage_data[name]
+            logo = self._get_logo(name, 24)
+            
+            if logo:
+                _paste_image(image, logo, 20, 12)
+            
+            # Status ring around the edge
+            if usage and not usage.is_error:
+                if usage.session_percent is not None:
+                    color = _USAGE_COLORS[_usage_level(usage.session_percent)]
+                    draw.arc([8, 8, size - 8, size - 8], start=0, end=360, 
+                            fill=(*color, 200), width=3)
+        else:
+            # Multiple providers - arrange in a grid
+            positions = [
+                (12, 12),  # Top-left
+                (36, 12),  # Top-right
+                (12, 36),  # Bottom-left
+                (36, 36),  # Bottom-right
+            ]
+            
+            for i, (name, usage) in enumerate(usage_data.items()):
+                if i >= 4:
+                    break
+                x, y = positions[i]
+                logo = self._get_logo(name, 16)
+                
+                if logo:
+                    _paste_image(image, logo, x, y)
+                
+                # Status dot
+                if usage and not usage.is_error and usage.session_percent is not None:
+                    color = _USAGE_COLORS[_usage_level(usage.session_percent)]
+                    dot_x, dot_y = x + 18, y + 18
+                    draw.ellipse([dot_x, dot_y, dot_x + 8, dot_y + 8], 
+                                fill=(*color, 255), outline=(255, 255, 255, 200), width=1)
+        
+        # Error indicator
+        has_errors = any(u and u.is_error for u in usage_data.values())
+        if has_errors:
+            draw.ellipse([size - 20, 0, size, 20], fill=(239, 68, 68, 230))
+            draw.text((size - 14, 3), "!", fill=(255, 255, 255, 255))
+        
         return image
 
-    def _create_icon_image(self, status_text: str = None) -> Image:
-        image = self._load_base_icon() or self._create_fallback_icon_image()
-
-        if status_text:
-            draw = ImageDraw.Draw(image)
-            # Error badge
-            draw.ellipse((44, 44, 62, 62), fill=(239, 68, 68, 230))
-            draw.ellipse((46, 46, 60, 60), fill=(239, 68, 68, 255))
-
-        return image
+    def _create_icon_image(self, usage_data: dict = None) -> Image:
+        if usage_data is not None:
+            return self._create_dynamic_icon(usage_data)
+        return self._load_base_icon() or self._create_dynamic_icon({})
 
     def _get_menu_items(self) -> List[pystray.MenuItem]:
         items = []
@@ -116,15 +217,15 @@ class SystemTray:
 
         if not usage:
             items.append(pystray.MenuItem(
-                f"{name.capitalize()}  loading...", None, enabled=False))
+                f"{name.capitalize()}  ·  loading...", None, enabled=False))
             return items
 
         if usage.is_error:
             items.append(pystray.MenuItem(
-                f"{name.capitalize()}: {usage.error}", None, enabled=False))
+                f"{name.capitalize()}  ·  {usage.error}", None, enabled=False))
             return items
 
-        # Provider header with summary stats
+        # Provider header with stats
         header_parts = [name.capitalize()]
         if usage.session_percent is not None:
             header_parts.append(f"S:{usage.session_percent:.0f}%")
@@ -171,9 +272,9 @@ class SystemTray:
 
         try:
             usage_data = self.provider_manager.get_all_usage()
-            has_errors = any(u and u.is_error for u in usage_data.values())
-
-            image = self._create_icon_image('error' if has_errors else '')
+            
+            # Create dynamic icon with provider logos
+            image = self._create_icon_image(usage_data)
             self.icon.icon = image
 
             menu = self._build_menu()
@@ -221,7 +322,8 @@ class SystemTray:
 
         def run_icon():
             menu = self._build_menu()
-            image = self._create_icon_image()
+            # Start with empty usage data
+            image = self._create_icon_image({})
 
             self.icon = pystray.Icon(
                 'meter',
