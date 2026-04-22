@@ -1,10 +1,11 @@
-.PHONY: install uninstall clean test run autostart
+.PHONY: install uninstall clean test run autostart aur-update aur-push
 
 PREFIX ?= $(HOME)/.local
 BINDIR = $(PREFIX)/bin
 SHAREDIR = $(PREFIX)/share
 APPDIR = $(SHAREDIR)/applications
 AUTOSTARTDIR = $(HOME)/.config/autostart
+VERSION = $(shell grep '^pkgver=' PKGBUILD | cut -d= -f2)
 
 install:
 	pip install -e .
@@ -31,3 +32,20 @@ test:
 
 run:
 	python -m meter
+
+# AUR targets
+aur-init:
+	git clone ssh://aur@aur.archlinux.org/meter-tray.git aur
+
+aur-update:
+	@makepkg --printsrcinfo > .SRCINFO
+	@echo "Updated .SRCINFO for version $(VERSION)"
+
+aur-push: aur-update
+	@if [ ! -d "aur" ]; then \
+		echo "AUR repo not found. Run 'make aur-init' first."; \
+		exit 1; \
+	fi
+	cp PKGBUILD .SRCINFO aur/
+	cd aur && git add -A && git commit -m "Update to $(VERSION)" && git push origin master
+	@echo "Pushed $(VERSION) to AUR"

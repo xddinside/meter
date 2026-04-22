@@ -25,3 +25,6 @@ venv/
 .idea/
 .vscode/
 *.log
+
+# AUR package repo (managed separately)
+aur/
