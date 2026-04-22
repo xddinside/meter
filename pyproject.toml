@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "meter-tray"
+version = "0.1.0"
+description = "A system tray app that tracks AI usage limits for Codex, Claude, and OpenCode"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Your Name", email = "your@email.com"}
+]
+keywords = ["ai", "codex", "claude", "opencode", "usage", "tray", "linux"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: X11 Applications",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Utilities",
+]
+dependencies = [
+    "pystray>=0.19.5",
+    "pillow>=10.0.0",
+]
+
+[project.scripts]
+meter = "meter.main:main"
+
+[project.urls]
+Homepage = "https://github.com/yourusername/meter"
+Issues = "https://github.com/yourusername/meter/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"

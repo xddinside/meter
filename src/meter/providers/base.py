@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Optional
 import logging
 
-logger = logging.getLogger('codexbar.providers')
+logger = logging.getLogger('meter.providers')
 
 @dataclass
 class UsageData:

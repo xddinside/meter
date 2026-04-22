@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Meter
+Exec=/home/xdd/dev/work/codex-bar/run.sh
+Icon=utilities-terminal
+Comment=AI usage tracker
+StartupNotify=false
+Terminal=false

@@ -10,7 +10,7 @@ from .base import Provider, UsageData
 from .codex import CodexProvider
 from .opencode import OpenCodeProvider
 
-logger = logging.getLogger('codexbar.providers')
+logger = logging.getLogger('meter.providers')
 
 class ProviderManager:
     PROVIDER_CLASSES = {
@@ -89,7 +89,7 @@ class ProviderManager:
         return json.dumps(data, indent=2)
     
     def print_status(self):
-        print("\n=== CodexBar Status ===")
+        print("\n=== Meter Status ===")
         for name, provider in self.providers.items():
             if provider.usage:
                 print(f"\n{name.upper()}:")

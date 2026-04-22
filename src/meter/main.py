@@ -8,17 +8,17 @@ import time
 from pathlib import Path
 from threading import Lock
 
-from config import Config
-from providers import ProviderManager
-from ui.tray import SystemTray
+from meter.config import Config
+from meter.providers import ProviderManager
+from meter.ui.tray import SystemTray
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-logger = logging.getLogger('codexbar')
+logger = logging.getLogger('meter')
 
-class CodexBar:
+class Meter:
     def __init__(self, config_path: str = None, no_tray: bool = False):
         self.config = Config(config_path)
         self._no_tray = no_tray or self.config.no_tray
@@ -27,7 +27,7 @@ class CodexBar:
         self.running = False
         
     def start(self):
-        logger.info("Starting CodexBar...")
+        logger.info("Starting Meter...")
         
         self.provider_manager.start()
         
@@ -36,17 +36,17 @@ class CodexBar:
             self.tray.start()
         
         self.running = True
-        logger.info("CodexBar started successfully")
+        logger.info("Meter started successfully")
         
     def stop(self):
-        logger.info("Stopping CodexBar...")
+        logger.info("Stopping Meter...")
         self.running = False
         
         if self.tray:
             self.tray.stop()
         
         self.provider_manager.stop()
-        logger.info("CodexBar stopped")
+        logger.info("Meter stopped")
         
     def wait(self):
         try:
@@ -56,7 +56,7 @@ class CodexBar:
             pass
             
 def main():
-    parser = argparse.ArgumentParser(description='CodexBar - AI usage tracker')
+    parser = argparse.ArgumentParser(description='Meter - AI usage tracker')
     parser.add_argument('--config', '-c', default=None, help='Config file path')
     parser.add_argument('--no-tray', action='store_true', help='Run without system tray')
     parser.add_argument('--debug', action='store_true', help='Enable debug logging')
@@ -68,14 +68,14 @@ def main():
         logging.getLogger().setLevel(logging.DEBUG)
     
     if args.refresh:
-        from providers import ProviderManager
-        from config import Config
+        from meter.providers import ProviderManager
+        from meter.config import Config
         mgr = ProviderManager(Config(args.config))
         mgr.refresh_all()
         mgr.print_status()
         sys.exit(0)
     
-    app = CodexBar(args.config)
+    app = Meter(args.config)
     
     def signal_handler(sig, frame):
         app.stop()

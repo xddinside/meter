@@ -11,8 +11,8 @@ DEFAULT_CONFIG = {
         "opencode": {"enabled": True}
     },
     "refresh_interval": 60,
-    "log_dir": "~/.local/share/codexbar/logs",
-    "cache_dir": "~/.cache/codexbar"
+    "log_dir": "~/.local/share/meter/logs",
+    "cache_dir": "~/.cache/meter"
 }
 
 @dataclass
@@ -26,7 +26,7 @@ class Config:
         
     def _load_config(self, config_path: str = None) -> Dict:
         if config_path is None:
-            config_path = os.environ.get('CODEXBAR_CONFIG', '~/.config/codexbar/config.json')
+            config_path = os.environ.get('METER_CONFIG', '~/.config/meter/config.json')
         
         config_file = Path(config_path).expanduser()
         
@@ -46,8 +46,8 @@ class Config:
         return {
             'provider_configs': provider_configs,
             'refresh_interval': data.get('refresh_interval', 60),
-            'log_dir': Path(data.get('log_dir', '~/.local/share/codexbar/logs')).expanduser(),
-            'cache_dir': Path(data.get('cache_dir', '~/.cache/codexbar')).expanduser(),
+            'log_dir': Path(data.get('log_dir', '~/.local/share/meter/logs')).expanduser(),
+            'cache_dir': Path(data.get('cache_dir', '~/.cache/meter')).expanduser(),
             'no_tray': data.get('no_tray', False)
         }
         

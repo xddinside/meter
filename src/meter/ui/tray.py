@@ -7,7 +7,7 @@ from typing import Optional, List
 import pystray
 from PIL import Image, ImageDraw
 
-logger = logging.getLogger('codexbar.ui')
+logger = logging.getLogger('meter.ui')
 
 class SystemTray:
     def __init__(self, provider_manager, config):
@@ -44,7 +44,7 @@ class SystemTray:
     def _get_menu_items(self) -> List[pystray.MenuItem]:
         items = []
         
-        items.append(pystray.MenuItem('─ CodexBar ─', None, enabled=False))
+        items.append(pystray.MenuItem('─ Meter ─', None, enabled=False))
         items.append(pystray.Menu.SEPARATOR)
         
         usage_data = self.provider_manager.get_all_usage()
@@ -124,7 +124,7 @@ class SystemTray:
                 elif usage.credits is not None:
                     title_parts.append(f"{name[:1].upper()}:${usage.credits:.2f}")
         
-        self.icon.title = ' | '.join(title_parts) if title_parts else 'CodexBar'
+        self.icon.title = ' | '.join(title_parts) if title_parts else 'Meter'
     
     def _on_refresh(self):
         logger.info("Manual refresh triggered")
@@ -143,9 +143,9 @@ class SystemTray:
             image = self._create_icon_image()
             
             self.icon = pystray.Icon(
-                'codexbar',
+                'meter',
                 image,
-                'CodexBar',
+                'Meter',
                 menu
             )
             
