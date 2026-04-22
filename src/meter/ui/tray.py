@@ -10,11 +10,14 @@ from PIL import Image, ImageDraw
 logger = logging.getLogger('meter.ui')
 
 class SystemTray:
-    def __init__(self, provider_manager, config):
+    def __init__(self, provider_manager, config, on_quit_callback=None):
         self.provider_manager = provider_manager
         self.config = config
+        self.on_quit_callback = on_quit_callback
         self.icon: Optional[pystray.Icon] = None
         self._thread: Optional[threading.Thread] = None
+        self._update_thread: Optional[threading.Thread] = None
+        self._stopping = False
         
     def _create_icon_image(self, status_text: str = None) -> Image:
         width, height = 64, 64
@@ -102,29 +105,33 @@ class SystemTray:
         return pystray.Menu(*self._get_menu_items())
     
     def _update_icon(self):
-        if not self.icon:
+        if self._stopping or not self.icon:
             return
             
-        usage_data = self.provider_manager.get_all_usage()
-        has_errors = any(u and u.is_error for u in usage_data.values())
-        
-        image = self._create_icon_image('error' if has_errors else '')
-        self.icon.icon = image
-        
-        menu = self._build_menu()
-        self.icon.menu = menu
-        
-        title_parts = []
-        for name, usage in usage_data.items():
-            if usage and not usage.is_error:
-                if usage.session_percent is not None and usage.weekly_percent is not None:
-                    title_parts.append(f"{name[:1].upper()}:S{usage.session_percent:.0f}% W{usage.weekly_percent:.0f}%")
-                elif usage.session_percent is not None:
-                    title_parts.append(f"{name[:1].upper()}:{usage.session_percent:.0f}%")
-                elif usage.credits is not None:
-                    title_parts.append(f"{name[:1].upper()}:${usage.credits:.2f}")
-        
-        self.icon.title = ' | '.join(title_parts) if title_parts else 'Meter'
+        try:
+            usage_data = self.provider_manager.get_all_usage()
+            has_errors = any(u and u.is_error for u in usage_data.values())
+            
+            image = self._create_icon_image('error' if has_errors else '')
+            self.icon.icon = image
+            
+            menu = self._build_menu()
+            self.icon.menu = menu
+            
+            title_parts = []
+            for name, usage in usage_data.items():
+                if usage and not usage.is_error:
+                    if usage.session_percent is not None and usage.weekly_percent is not None:
+                        title_parts.append(f"{name[:1].upper()}:S{usage.session_percent:.0f}% W{usage.weekly_percent:.0f}%")
+                    elif usage.session_percent is not None:
+                        title_parts.append(f"{name[:1].upper()}:{usage.session_percent:.0f}%")
+                    elif usage.credits is not None:
+                        title_parts.append(f"{name[:1].upper()}:${usage.credits:.2f}")
+            
+            self.icon.title = ' | '.join(title_parts) if title_parts else 'Meter'
+        except Exception as e:
+            if not self._stopping:
+                logger.error(f"Icon update error: {e}")
     
     def _on_refresh(self):
         logger.info("Manual refresh triggered")
@@ -133,11 +140,25 @@ class SystemTray:
     
     def _on_quit(self):
         logger.info("Quit requested from tray")
+        self._stopping = True
         self.provider_manager._running = False
+        
+        if self.on_quit_callback:
+            try:
+                self.on_quit_callback()
+            except Exception as e:
+                logger.error(f"Quit callback error: {e}")
+        
         if self.icon:
-            self.icon.stop()
+            try:
+                self.icon.stop()
+            except Exception as e:
+                logger.error(f"Icon stop error: {e}")
+            self.icon = None
     
     def start(self):
+        self._stopping = False
+        
         def run_icon():
             menu = self._build_menu()
             image = self._create_icon_image()
@@ -155,11 +176,12 @@ class SystemTray:
         self._thread.start()
         
         def update_loop():
-            while True:
+            while not self._stopping:
                 try:
                     self._update_icon()
                 except Exception as e:
-                    logger.error(f"Icon update error: {e}")
+                    if not self._stopping:
+                        logger.error(f"Icon update error: {e}")
                 import time
                 time.sleep(10)
         
@@ -169,7 +191,11 @@ class SystemTray:
         logger.info("System tray started")
     
     def stop(self):
+        self._stopping = True
         if self.icon:
-            self.icon.stop()
+            try:
+                self.icon.stop()
+            except Exception:
+                pass
             self.icon = None
         logger.info("System tray stopped")

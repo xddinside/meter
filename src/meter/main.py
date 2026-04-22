@@ -32,7 +32,7 @@ class Meter:
         self.provider_manager.start()
         
         if not self._no_tray:
-            self.tray = SystemTray(self.provider_manager, self.config)
+            self.tray = SystemTray(self.provider_manager, self.config, on_quit_callback=self.stop)
             self.tray.start()
         
         self.running = True
