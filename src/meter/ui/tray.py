@@ -10,37 +10,21 @@ from PIL import Image, ImageDraw
 
 logger = logging.getLogger('meter.ui')
 
-# Unicode blocks for mini progress bars
-_BAR_FULL = '█'
-_BAR_EMPTY = '░'
-_BAR_BLOCKS = ['░', '▒', '▓', '█']
+# Clean geometric shapes for progress bars (render consistently in system fonts)
+_BAR_FULL = '■'
+_BAR_EMPTY = '□'
+_BAR_WIDTH = 4
 
 
-def _mini_bar(percent: float, width: int = 6) -> str:
-    """Generate a compact Unicode progress bar."""
+def _mini_bar(percent: float, width: int = _BAR_WIDTH) -> str:
+    """Generate a compact progress bar using geometric shapes."""
     filled = int((percent / 100) * width)
-    remainder = (percent / 100) * width - filled
-    
-    bar = _BAR_FULL * filled
-    if filled < width and remainder > 0:
-        idx = min(int(remainder * 4), 3)
-        bar += _BAR_BLOCKS[idx]
-        bar += _BAR_EMPTY * (width - filled - 1)
-    else:
-        bar += _BAR_EMPTY * (width - filled)
-    
-    return bar
+    return _BAR_FULL * filled + _BAR_EMPTY * (width - filled)
 
 
-def _status_emoji(percent: float) -> str:
-    """Return a status indicator based on usage percentage."""
-    if percent >= 90:
-        return '🔴'
-    elif percent >= 70:
-        return '🟡'
-    elif percent >= 40:
-        return '🟢'
-    return '⚪'
+def _compact_time(remaining: str) -> str:
+    """Compress time string for menu width: '3h 9m' -> '3h9m'."""
+    return remaining.replace(' ', '') if remaining else ''
 
 
 class SystemTray:
@@ -74,21 +58,21 @@ class SystemTray:
         image = Image.new('RGBA', (width, height), color=(0, 0, 0, 0))
         draw = ImageDraw.Draw(image)
 
-        # Draw a gauge-like icon
+        # Gauge-like icon
         cx, cy = width // 2, height // 2 + 4
         radius = 24
-        
+
         # Background arc
-        draw.arc([cx - radius, cy - radius, cx + radius, cy + radius], 
+        draw.arc([cx - radius, cy - radius, cx + radius, cy + radius],
                  start=180, end=360, fill=(80, 80, 80, 180), width=6)
-        
-        # Active arc (partial)
-        draw.arc([cx - radius, cy - radius, cx + radius, cy + radius], 
+
+        # Active arc
+        draw.arc([cx - radius, cy - radius, cx + radius, cy + radius],
                  start=180, end=270, fill=(76, 175, 80, 255), width=6)
-        
+
         # Center dot
         draw.ellipse([cx - 4, cy - 4, cx + 4, cy + 4], fill=(255, 255, 255, 200))
-        
+
         # Tick marks
         for angle in [180, 225, 270, 315, 360]:
             rad = math.radians(angle)
@@ -102,7 +86,7 @@ class SystemTray:
 
     def _create_icon_image(self, status_text: str = None) -> Image:
         image = self._load_base_icon() or self._create_fallback_icon_image()
-        
+
         if status_text:
             draw = ImageDraw.Draw(image)
             # Error badge
@@ -122,8 +106,8 @@ class SystemTray:
                 items.extend(self._format_provider_items(name, usage))
 
         items.append(pystray.Menu.SEPARATOR)
-        items.append(pystray.MenuItem('🔄 Refresh', self._on_refresh))
-        items.append(pystray.MenuItem('✕ Quit', self._on_quit))
+        items.append(pystray.MenuItem('Refresh', self._on_refresh))
+        items.append(pystray.MenuItem('Quit', self._on_quit))
 
         return items
 
@@ -132,15 +116,15 @@ class SystemTray:
 
         if not usage:
             items.append(pystray.MenuItem(
-                f"{name.capitalize()}  ⏳ Loading...", None, enabled=False))
+                f"{name.capitalize()}  loading...", None, enabled=False))
             return items
 
         if usage.is_error:
             items.append(pystray.MenuItem(
-                f"⚠ {name.capitalize()}: {usage.error}", None, enabled=False))
+                f"{name.capitalize()}: {usage.error}", None, enabled=False))
             return items
 
-        # Provider header with key stat
+        # Provider header with summary stats
         header_parts = [name.capitalize()]
         if usage.session_percent is not None:
             header_parts.append(f"S:{usage.session_percent:.0f}%")
@@ -148,31 +132,29 @@ class SystemTray:
             header_parts.append(f"W:{usage.weekly_percent:.0f}%")
         if usage.credits is not None:
             header_parts.append(f"${usage.credits:.2f}")
-        
+
         items.append(pystray.MenuItem(
             '  '.join(header_parts), None, enabled=False))
 
         # Session with progress bar
         if usage.session_percent is not None:
             bar = _mini_bar(usage.session_percent)
-            emoji = _status_emoji(usage.session_percent)
-            label = f"  {emoji} Session  {bar}  {usage.session_percent:.0f}%"
+            label = f"  Session   {bar}  {usage.session_percent:.0f}%"
             if usage.session_remaining:
-                label += f"  ·  {usage.session_remaining}"
+                label += f"  ·  {_compact_time(usage.session_remaining)}"
             items.append(pystray.MenuItem(label, None, enabled=False))
 
         # Weekly with progress bar
         if usage.weekly_percent is not None:
             bar = _mini_bar(usage.weekly_percent)
-            emoji = _status_emoji(usage.weekly_percent)
-            label = f"  {emoji} Weekly  {bar}  {usage.weekly_percent:.0f}%"
+            label = f"  Weekly    {bar}  {usage.weekly_percent:.0f}%"
             if usage.weekly_remaining:
-                label += f"  ·  {usage.weekly_remaining}"
+                label += f"  ·  {_compact_time(usage.weekly_remaining)}"
             items.append(pystray.MenuItem(label, None, enabled=False))
 
-        # Credits (no bar, just formatted)
+        # Credits (no bar, clean currency display)
         if usage.credits is not None:
-            label = f"  💰 Credits  ${usage.credits:.2f}"
+            label = f"  Credits   ${usage.credits:.2f}"
             items.append(pystray.MenuItem(label, None, enabled=False))
 
         if len(items) == 1:
