@@ -293,6 +293,7 @@ class OpenCodeProvider(Provider):
     def _fetch_via_cli_fallback(self) -> UsageData:
         import subprocess
         import shutil
+        import tempfile
 
         # Add common paths where opencode might be installed
         custom_paths = [
@@ -315,13 +316,18 @@ class OpenCodeProvider(Provider):
             return UsageData(provider=self.name, error="OpenCode CLI not found")
 
         try:
-            result = subprocess.run(
-                [opencode_bin, 'stats'],
-                capture_output=True,
-                text=True,
-                timeout=15,
-                env=env
-            )
+            tmp_parent = self.config.cache_dir / 'opencode-tmp'
+            tmp_parent.mkdir(parents=True, exist_ok=True)
+
+            with tempfile.TemporaryDirectory(prefix='stats-', dir=str(tmp_parent)) as tmpdir:
+                env['TMPDIR'] = tmpdir
+                result = subprocess.run(
+                    [opencode_bin, 'stats'],
+                    capture_output=True,
+                    text=True,
+                    timeout=15,
+                    env=env
+                )
 
             if result.returncode != 0:
                 stderr = result.stderr.strip()[:100]

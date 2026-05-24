@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import json
 import logging
 import os
 import sys
@@ -17,6 +18,32 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger('meter')
+
+def _set_provider_enabled(config_path: str, provider: str, enabled: bool):
+    """Persist a provider toggle without discarding the user's other settings."""
+    target = Path(config_path or os.environ.get('METER_CONFIG', '~/.config/meter/config.json')).expanduser()
+    target.parent.mkdir(parents=True, exist_ok=True)
+
+    if target.exists():
+        with open(target) as f:
+            data = json.load(f)
+    else:
+        data = {}
+
+    providers = data.setdefault('providers', {})
+    provider_config = providers.setdefault(provider, {})
+    if not isinstance(provider_config, dict):
+        provider_config = {'enabled': bool(provider_config)}
+        providers[provider] = provider_config
+
+    provider_config['enabled'] = enabled
+
+    with open(target, 'w') as f:
+        json.dump(data, f, indent=2)
+        f.write('\n')
+
+    state = 'enabled' if enabled else 'disabled'
+    print(f"{provider} provider {state} in {target}")
 
 class Meter:
     def __init__(self, config_path: str = None, no_tray: bool = False):
@@ -116,6 +143,8 @@ def main():
     parser.add_argument('--refresh', action='store_true', help='Trigger manual refresh')
     parser.add_argument('--autostart', action='store_true', help='Enable autostart on boot via systemd')
     parser.add_argument('--remove-autostart', action='store_true', help='Disable autostart')
+    parser.add_argument('--enable-opencode', action='store_true', help='Enable the OpenCode provider in the config')
+    parser.add_argument('--disable-opencode', action='store_true', help='Disable the OpenCode provider in the config')
     
     args = parser.parse_args()
     
@@ -128,6 +157,14 @@ def main():
     
     if args.remove_autostart:
         _remove_autostart()
+        sys.exit(0)
+
+    if args.enable_opencode:
+        _set_provider_enabled(args.config, 'opencode', True)
+        sys.exit(0)
+
+    if args.disable_opencode:
+        _set_provider_enabled(args.config, 'opencode', False)
         sys.exit(0)
     
     if args.refresh:

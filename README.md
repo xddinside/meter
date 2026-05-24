@@ -7,7 +7,7 @@ A minimalist Linux system tray app that tracks AI usage limits — inspired by [
 Meter sits in your system tray and shows real-time usage stats for:
 
 - **OpenAI Codex** — session & weekly limits (from `~/.codex/auth.json`)
-- **OpenCode Go** — rolling usage & weekly limits (via browser cookies)
+- **OpenCode Go** — rolling usage & weekly limits (opt-in, via browser cookies or CLI fallback)
 
 No browser windows. No dashboards. Just glance at your tray.
 
@@ -98,7 +98,7 @@ Config lives at `~/.config/meter/config.json`:
   "providers": {
     "codex": {"enabled": true},
     "opencode": {
-      "enabled": true,
+      "enabled": false,
       "cookie": null
     }
   },
@@ -107,6 +107,21 @@ Config lives at `~/.config/meter/config.json`:
 ```
 
 ### Setting up OpenCode Go
+
+OpenCode is optional and starts disabled. Enable it when you want Meter to show
+OpenCode usage too:
+
+```bash
+meter --enable-opencode
+systemctl --user restart meter
+```
+
+You can turn it off again anytime:
+
+```bash
+meter --disable-opencode
+systemctl --user restart meter
+```
 
 The OpenCode provider needs your browser cookies to fetch usage. Here's how:
 
@@ -121,7 +136,7 @@ The OpenCode provider needs your browser cookies to fetch usage. Here's how:
   "providers": {
     "opencode": {
       "enabled": true,
-      "cookie": "auth=Fe26.2**...; oc_locale=en"
+      "cookie": "your-opencode-cookie"
     }
   }
 }
@@ -139,6 +154,8 @@ Options:
   --refresh            Trigger a manual refresh and print status
   --autostart          Enable autostart on boot via systemd
   --remove-autostart   Disable autostart
+  --enable-opencode    Enable the OpenCode provider in the config
+  --disable-opencode   Disable the OpenCode provider in the config
 ```
 
 ## Uninstall
@@ -158,6 +175,10 @@ rm -rf ~/.config/meter ~/.cache/meter ~/.local/share/meter
 
 **"OpenCode CLI not found"**
 - Make sure `opencode` is in your PATH. Meter searches common locations including `~/.nvm/versions/node/*/bin/`.
+
+**OpenCode is not showing**
+- Enable it with `meter --enable-opencode`, then restart Meter.
+- Add a cookie in `~/.config/meter/config.json` if browser cookie detection does not find your login.
 
 **No tray icon showing**
 - Install a system tray implementation like `waybar`, `polybar`, or `stalonetray`

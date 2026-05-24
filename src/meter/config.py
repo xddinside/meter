@@ -8,7 +8,7 @@ from typing import Dict, Optional
 DEFAULT_CONFIG = {
     "providers": {
         "codex": {"enabled": True},
-        "opencode": {"enabled": True}
+        "opencode": {"enabled": False}
     },
     "refresh_interval": 60,
     "log_dir": "~/.local/share/meter/logs",
